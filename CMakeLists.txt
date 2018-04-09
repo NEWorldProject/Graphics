@@ -18,6 +18,7 @@ add_executable(Graphics ${SRC_GRAP})
 find_package(OpenGL REQUIRED)
 find_package(Threads REQUIRED)
 find_package(GLEW REQUIRED)
+set(SDL2_BUILDING_LIBRARY ON)
 find_package(SDL2 REQUIRED)
 find_package(SDL2_image REQUIRED)
 target_include_directories(Graphics PUBLIC
