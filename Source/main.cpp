@@ -8,14 +8,14 @@
 #include "Utility.h"
 
 struct Rect {
-    Vec2i min, max;
+    Vec2d min, max;
 };
 
 using Vert = Vec2d;
 
 class Brush: public NonCopyable {
 public:
-    virtual void useBrush() = 0;
+    virtual void useBrush(const Mat4d& mvp) = 0;
     virtual ~Brush() {}
 };
 
@@ -23,6 +23,39 @@ using BrushHandle = std::shared_ptr<Brush>;
 
 class EFX: public NonCopyable {
 
+};
+
+class TestBrush:public Brush {
+public:
+    TestBrush() {
+        Shader vert{GL_VERTEX_SHADER, R"(
+#version 330
+in vec2 pos;
+uniform mat4 mvp;
+void main() {
+   gl_Position = mvp * vec4(pos.x, pos.y, 0.0, 1.0);
+}
+)"
+        };
+        Shader frag{GL_FRAGMENT_SHADER, R"(
+#version 330
+out vec4 outputColor;
+void main() {
+    outputColor = vec4(1.0, 1.0, 1.0, 1.0);
+}
+)"
+        };
+        mProg.link({&vert, &frag});
+        mMvp = mProg.getUniformLoc("mvp");
+    }
+
+    void useBrush(const Mat4d& mvp) override {
+        mProg.use();
+        glUniformMatrix4dv(mMvp, 1, GL_FALSE, mvp.data);
+    }
+private:
+    Program mProg;
+    GLint mMvp;
 };
 
 using EFXHandle = std::shared_ptr<EFX>;
@@ -55,7 +88,7 @@ void main() {
 }
 )"
         };
-        Shader frag{GL_VERTEX_SHADER, R"(
+        Shader frag{ GL_FRAGMENT_SHADER, R"(
 #version 330
 out vec4 outputColor;
 void main() {
@@ -106,6 +139,10 @@ public:
         glDeleteTextures(1, &mTexOut);
         glDeleteTextures(1, &mTexFront);
     }
+    static Scene& instance() {
+        static Scene ins;
+        return ins;
+    }
     void setSize(Vec2i size) {
         for (auto x : { mRbo[0], mRbo[1] }) {
             glBindRenderbuffer(GL_RENDERBUFFER, x);
@@ -122,24 +159,31 @@ public:
         PipelineStage0::instance().use();
         PipelineStage0::instance().setMVP(mTransforms.back());
         glBindFramebuffer(GL_FRAMEBUFFER, mFbo[0]);
-        glEnable(GL_STENCIL_TEST);
-        glEnable(GL_BLEND);
-        glClearStencil(0);
         glClearColor(0.0, 0.0, 0.0, 0.0);
-        glStencilFunc(GL_ALWAYS, 1, 1);
-        glStencilOp(GL_REPLACE, GL_REPLACE, GL_REPLACE);
+
+
+        glColorMask(GL_FALSE, GL_TRUE, GL_FALSE, GL_FALSE);
+        glDepthMask(GL_FALSE);
+        glStencilMask(GL_TRUE);
+        glStencilFunc(GL_ALWAYS, 1, GL_TRUE);
+        glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
         glBindVertexArray(mVao);
         glBindBuffer(GL_ARRAY_BUFFER, mVbo);
         glEnableVertexAttribArray(0);
         glBufferData(GL_ARRAY_BUFFER, sizeof(Vert) * sprite.getVertices().size(),
-                sprite.getVertices().data(), GL_STATIC_DRAW);
+                sprite.getVertices().data(), GL_DYNAMIC_DRAW);
         glVertexAttribPointer(0, 2, GL_DOUBLE, GL_FALSE, 0, nullptr);
         glDrawArrays(GL_TRIANGLES, 0, sprite.getVertices().size());
-        glStencilFunc(GL_EQUAL, 1, 1);
+
+
+
+        glColorMask(GL_TRUE, GL_FALSE, GL_FALSE, GL_FALSE);
+        glStencilMask(GL_FALSE);
+        glStencilFunc(GL_EQUAL, 1, GL_TRUE);
         glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
-        sprite.getBrush()->useBrush();
+        sprite.getBrush()->useBrush(mTransforms.back());
         Rect rect = sprite.getRect();
-        double rect[12] = {
+        double rectData[12] = {
                 rect.min.x, rect.min.y,
                 rect.max.x, rect.min.y,
                 rect.min.x, rect.max.y,
@@ -147,11 +191,10 @@ public:
                 rect.max.x, rect.max.y,
                 rect.min.x, rect.max.y,
         };
-        glBufferData(GL_ARRAY_BUFFER, sizeof(double) * 6, sprite.getVertices().data(), GL_STATIC_DRAW);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(double) * 12, rectData, GL_DYNAMIC_DRAW);
         glVertexAttribPointer(0, 2, GL_DOUBLE, GL_FALSE, 0, nullptr);
-        glDrawArrays(GL_TRIANGLES, 0, sprite.getVertices().size());
+        glDrawArrays(GL_TRIANGLES, 0, 6);
         glDisableVertexAttribArray(0);
-
     }
     void pushTransform(Mat4d mat) {
         mTransforms.push_back(mTransforms.back() * mat);
@@ -159,7 +202,6 @@ public:
     void popTransform() { mTransforms.pop_back(); }
     void pushClip(const std::vector<Vert>& verts);
     void popClip();
-private:
     GLuint mTex0;
     GLuint mTexOut;
     GLuint mTexFront;
@@ -173,11 +215,13 @@ private:
 bool quit;
 SDL_Window *window;
 SDL_GLContext glContext;
+BrushHandle testBrush;
 
 bool init() {
     //Use OpenGL 3.1 core
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
+    SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
     // Initialize video subsystem
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
@@ -186,7 +230,7 @@ bool init() {
         return false;
     }
     // Create window
-    window = SDL_CreateWindow("Hello World!", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 800, 600,
+    window = SDL_CreateWindow("Hello World!", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 600, 600,
                               SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN);
     if (window == nullptr) {
         // Display error message
@@ -202,6 +246,8 @@ bool init() {
     }
     // Initialize glew
     glewInit();
+    Scene::instance().setSize({600, 600});
+    testBrush = std::make_shared<TestBrush>();
 }
 
 void processEvent(const SDL_Event& ev) {
@@ -222,10 +268,23 @@ void processEvents() {
 }
 
 void render() {
+    auto& scene = Scene::instance();
     // Set background color as cornflower blue
-    glClearColor(0.39f, 0.58f, 0.93f, 1.f);
+    glEnable(GL_STENCIL_TEST);
+    glClearColor(0.0, 0.0, 0.0, 0.0);
     // Clear color buffer
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+    //scene.pushTransform(Mat4d::ortho(-300, 300, -300, 300, 0.0, 0.500));
+    Sprite sprite;
+    std::vector<Vert> verts;
+    verts.push_back(Vec2d{-0.25, -0.5});
+    verts.push_back(Vec2d{0, 0});
+    verts.push_back(Vec2d{0, -0.5});
+    sprite.setVertices(verts);
+    sprite.setRect({{-0.5, -0.5}, {0.5, 0.5}});
+    sprite.setBrush(testBrush);
+    scene.render(sprite, nullptr);
+    //scene.popTransform();
     // Update window with OpenGL rendering
     SDL_GL_SwapWindow(window);
 };
