@@ -23,7 +23,7 @@ Shader::Shader(GLuint eShaderType, const std::string &strFileData) {
         fprintf(stderr, "Compile failure in %s shader:\n%s\n", strShaderType, strInfoLog);
         delete[] strInfoLog;
     }
-    //mShader = shader;
+    mShader = shader;
 }
 
 void Program::link(const std::vector<Shader*>& shaderList) {

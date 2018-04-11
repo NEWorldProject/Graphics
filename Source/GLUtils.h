@@ -21,8 +21,8 @@ public:
     void use() {
         glUseProgram(mProgram);
     }
-    auto getUniformLoc(const std::string& name) {
-        return glGetUniformLocation(mProgram, name.c_str());
+    auto getUniformLoc(const char* name) {
+        return glGetUniformLocation(mProgram, name);
     }
 private:
     GLuint mProgram;

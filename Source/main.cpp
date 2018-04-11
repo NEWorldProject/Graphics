@@ -97,6 +97,7 @@ void main() {
 )"
         };
         mProg.link({ &vert, &frag });
+        use();
         mMvp = mProg.getUniformLoc("mvp");
     }
     void use() { mProg.use(); }
@@ -104,7 +105,7 @@ void main() {
         static PipelineStage0 ins;
         return ins;
     }
-    auto setMVP(const Mat4d& mat) {
+    auto setMVP(const Mat4d mat) {
         glUniformMatrix4dv(mMvp, 1, GL_FALSE, mat.data);
     }
 private:
@@ -120,9 +121,6 @@ public:
         glGenTextures(1, &mTex0);
         glGenTextures(1, &mTexOut);
         glGenTextures(1, &mTexFront);
-        glBindFramebuffer(GL_FRAMEBUFFER, mFbo[0]);
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_STENCIL_ATTACHMENT, GL_TEXTURE_2D, mTex0, 0);
-        glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_STENCIL_ATTACHMENT, GL_RENDERBUFFER, mRbo[0]);
         glBindFramebuffer(GL_FRAMEBUFFER, mFbo[1]);
         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_STENCIL_ATTACHMENT, GL_TEXTURE_2D, mTexOut, 0);
         glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_STENCIL_ATTACHMENT, GL_RENDERBUFFER, mRbo[1]);
@@ -158,7 +156,7 @@ public:
     void render(const Sprite& sprite, EFXHandle efx) {
         PipelineStage0::instance().use();
         PipelineStage0::instance().setMVP(mTransforms.back());
-        glBindFramebuffer(GL_FRAMEBUFFER, mFbo[0]);
+        //glBindFramebuffer(GL_FRAMEBUFFER, mFbo[0]);
         glClearColor(0.0, 0.0, 0.0, 0.0);
 
 
@@ -218,17 +216,17 @@ SDL_GLContext glContext;
 BrushHandle testBrush;
 
 bool init() {
-    //Use OpenGL 3.1 core
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
-    SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
     // Initialize video subsystem
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
         // Display error message
         printf("SDL could not initialize! SDL_Error: %s\n", SDL_GetError());
         return false;
     }
+    //Use OpenGL 3.1 core
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
+    SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
     // Create window
     window = SDL_CreateWindow("Hello World!", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 600, 600,
                               SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN);
@@ -286,6 +284,9 @@ void render() {
     scene.render(sprite, nullptr);
     //scene.popTransform();
     // Update window with OpenGL rendering
+    /*glBindFramebuffer(GL_READ_FRAMEBUFFER, scene.mFbo[0]);
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+    glBlitFramebuffer(0, 0, 600, 600, 0, 0, 600, 600, GL_COLOR_BUFFER_BIT, GL_NEAREST);*/
     SDL_GL_SwapWindow(window);
 };
 
