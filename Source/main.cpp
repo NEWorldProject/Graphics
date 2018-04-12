@@ -15,7 +15,7 @@ using Vert = Vec2d;
 
 class Brush: public NonCopyable {
 public:
-    virtual void useBrush(const Mat4d& mvp) = 0;
+    virtual void useBrush(const Mat4f& mvp) = 0;
     virtual ~Brush() {}
 };
 
@@ -49,9 +49,9 @@ void main() {
         mMvp = mProg.getUniformLoc("mvp");
     }
 
-    void useBrush(const Mat4d& mvp) override {
+    void useBrush(const Mat4f& mvp) override {
         mProg.use();
-        glUniformMatrix4dv(mMvp, 1, GL_FALSE, mvp.data);
+        glUniformMatrix4fv(mMvp, 1, GL_TRUE, mvp.data);
     }
 private:
     Program mProg;
@@ -105,8 +105,8 @@ void main() {
         static PipelineStage0 ins;
         return ins;
     }
-    auto setMVP(const Mat4d mat) {
-        glUniformMatrix4dv(mMvp, 1, GL_FALSE, mat.data);
+    auto setMVP(const Mat4f mat) {
+        glUniformMatrix4fv(mMvp, 1, GL_TRUE, mat.data);
     }
 private:
     Program mProg;
@@ -121,12 +121,6 @@ public:
         glGenTextures(1, &mTex0);
         glGenTextures(1, &mTexOut);
         glGenTextures(1, &mTexFront);
-        glBindFramebuffer(GL_FRAMEBUFFER, mFbo[1]);
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_STENCIL_ATTACHMENT, GL_TEXTURE_2D, mTexOut, 0);
-        glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_STENCIL_ATTACHMENT, GL_RENDERBUFFER, mRbo[1]);
-        glBindFramebuffer(GL_FRAMEBUFFER, mFbo[2]);
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_STENCIL_ATTACHMENT, GL_TEXTURE_2D, mTexFront, 0);
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
         glGenVertexArrays(1, &mVao);
         glGenBuffers(1, &mVbo);
     }
@@ -142,27 +136,38 @@ public:
         return ins;
     }
     void setSize(Vec2i size) {
+        unbindBuffers();
         for (auto x : { mRbo[0], mRbo[1] }) {
             glBindRenderbuffer(GL_RENDERBUFFER, x);
             glRenderbufferStorage(GL_RENDERBUFFER, GL_INTERNALFORMAT_STENCIL_TYPE, size.x, size.y);
         }
         for (auto x : { mTex0, mTexOut, mTexFront }) {
             glBindTexture(GL_TEXTURE_2D, x);
+            glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+            glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+            glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_MIRRORED_REPEAT);
+            glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_MIRRORED_REPEAT);
             glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, size.x, size.y, 0, GL_RGBA, GL_UNSIGNED_BYTE, 0);
         }
         glBindRenderbuffer(GL_RENDERBUFFER, 0);
         glBindTexture(GL_TEXTURE_2D, 0);
+        bindBuffers();
     }
     void render(const Sprite& sprite, EFXHandle efx) {
-        PipelineStage0::instance().use();
-        PipelineStage0::instance().setMVP(mTransforms.back());
+        glEnable(GL_STENCIL_TEST);
+        //bindBuffers();
         //glBindFramebuffer(GL_FRAMEBUFFER, mFbo[0]);
+        glClearStencil(0);
+        glClearColor(0.0, 0.0, 0.0, 0.0);
+        // Clear color buffer
+        glStencilMask(GL_TRUE);
+        glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
         glClearColor(0.0, 0.0, 0.0, 0.0);
 
-
-        glColorMask(GL_FALSE, GL_TRUE, GL_FALSE, GL_FALSE);
-        glDepthMask(GL_FALSE);
-        glStencilMask(GL_TRUE);
+        PipelineStage0::instance().use();
+        PipelineStage0::instance().setMVP(mTransforms.back());
+        glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
         glStencilFunc(GL_ALWAYS, 1, GL_TRUE);
         glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
         glBindVertexArray(mVao);
@@ -173,9 +178,7 @@ public:
         glVertexAttribPointer(0, 2, GL_DOUBLE, GL_FALSE, 0, nullptr);
         glDrawArrays(GL_TRIANGLES, 0, sprite.getVertices().size());
 
-
-
-        glColorMask(GL_TRUE, GL_FALSE, GL_FALSE, GL_FALSE);
+        glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
         glStencilMask(GL_FALSE);
         glStencilFunc(GL_EQUAL, 1, GL_TRUE);
         glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
@@ -193,8 +196,9 @@ public:
         glVertexAttribPointer(0, 2, GL_DOUBLE, GL_FALSE, 0, nullptr);
         glDrawArrays(GL_TRIANGLES, 0, 6);
         glDisableVertexAttribArray(0);
+        glDisable(GL_STENCIL_TEST);
     }
-    void pushTransform(Mat4d mat) {
+    void pushTransform(Mat4f mat) {
         mTransforms.push_back(mTransforms.back() * mat);
     }
     void popTransform() { mTransforms.pop_back(); }
@@ -206,8 +210,31 @@ public:
     GLuint mFbo[3];
     GLuint mRbo[2]; // For Stencil Buffers
     GLuint mVbo, mVao;
-    std::vector<Mat4d> mTransforms { Mat4d::identity() };
+    std::vector<Mat4f> mTransforms { Mat4f::identity() };
+private:
+    void bindBuffers() {
+        glBindFramebuffer(GL_FRAMEBUFFER, mFbo[0]);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_STENCIL_ATTACHMENT, GL_TEXTURE_2D, mTex0, 0);
+        glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_STENCIL_ATTACHMENT, GL_RENDERBUFFER, mRbo[0]);
+        glBindFramebuffer(GL_FRAMEBUFFER, mFbo[1]);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_STENCIL_ATTACHMENT, GL_TEXTURE_2D, mTexOut, 0);
+        glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_STENCIL_ATTACHMENT, GL_RENDERBUFFER, mRbo[1]);
+        glBindFramebuffer(GL_FRAMEBUFFER, mFbo[2]);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_STENCIL_ATTACHMENT, GL_TEXTURE_2D, mTexFront, 0);
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    }
 
+    void unbindBuffers() {
+        glBindFramebuffer(GL_FRAMEBUFFER, mFbo[0]);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_STENCIL_ATTACHMENT, GL_TEXTURE_2D, 0, 0);
+        glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_STENCIL_ATTACHMENT, GL_RENDERBUFFER, 0);
+        glBindFramebuffer(GL_FRAMEBUFFER, mFbo[1]);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_STENCIL_ATTACHMENT, GL_TEXTURE_2D, 0, 0);
+        glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_STENCIL_ATTACHMENT, GL_RENDERBUFFER, 0);
+        glBindFramebuffer(GL_FRAMEBUFFER, mFbo[2]);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_STENCIL_ATTACHMENT, GL_TEXTURE_2D, 0, 0);
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    }
 };
 
 bool quit;
@@ -244,6 +271,7 @@ bool init() {
     }
     // Initialize glew
     glewInit();
+    SDL_GL_SetSwapInterval(1);
     Scene::instance().setSize({600, 600});
     testBrush = std::make_shared<TestBrush>();
 }
@@ -268,21 +296,29 @@ void processEvents() {
 void render() {
     auto& scene = Scene::instance();
     // Set background color as cornflower blue
-    glEnable(GL_STENCIL_TEST);
-    glClearColor(0.0, 0.0, 0.0, 0.0);
+
+    glClearColor(0.7, 0.7, 1.0, 1.0);
     // Clear color buffer
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-    //scene.pushTransform(Mat4d::ortho(-300, 300, -300, 300, 0.0, 0.500));
+    static double frame = 0;
+    frame += 5;
+    scene.pushTransform(Mat4f::ortho(-300, 300, -300, 300, 0.0, 500.0));
+    scene.pushTransform(Mat4f::rotation(frame, {0, 0, 1}));
+    scene.pushTransform(Mat4f::translation({100, 0, 0}));
+    scene.pushTransform(Mat4f::rotation(frame * 7, {0, 0, 1}));
     Sprite sprite;
     std::vector<Vert> verts;
-    verts.push_back(Vec2d{-0.25, -0.5});
-    verts.push_back(Vec2d{0, 0});
-    verts.push_back(Vec2d{0, -0.5});
+    verts.push_back(Vec2d{-25, -25});
+    verts.push_back(Vec2d{25, -25});
+    verts.push_back(Vec2d{0, 25});
     sprite.setVertices(verts);
-    sprite.setRect({{-0.5, -0.5}, {0.5, 0.5}});
+    sprite.setRect({{-25, -25}, {25, 25}});
     sprite.setBrush(testBrush);
     scene.render(sprite, nullptr);
-    //scene.popTransform();
+    scene.popTransform();
+    scene.popTransform();
+    scene.popTransform();
+    scene.popTransform();
     // Update window with OpenGL rendering
     /*glBindFramebuffer(GL_READ_FRAMEBUFFER, scene.mFbo[0]);
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
