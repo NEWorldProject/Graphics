@@ -11,17 +11,13 @@ public:
     ~Scene();
     static Scene& instance();
     void setSize(Vec2i size);
-    void render(const ISprite& sprite, EFXHandle efx);
+    void render(const ISprite& sprite);
     void pushTransform(Mat4f mat);
     void popTransform();
     void pushClip(const std::vector<Vert>& verts);
     void popClip();
-    FrameBuffer mFbo;
+    FrameBuffer& getResult();
 private:
-    RenderBuffer mRbo;
-    DataBuffer mVbo;
-    GLuint mTex0;
-    GLuint mVao;
-    std::vector<Mat4f> mTransforms { Mat4f::identity() };
-    void bindBuffers();
+    class RenderPipeline;
+    std::unique_ptr<RenderPipeline> mPipeline;
 };

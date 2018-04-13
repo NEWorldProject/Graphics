@@ -31,14 +31,6 @@ private:
     GLuint mProgram;
 };
 
-class Texture {
-public:
-    Texture() { glGenTextures(1, &mTexture); }
-    ~Texture() { glDeleteTextures(1, &mTexture); }
-private:
-    GLuint mTexture;
-};
-
 class RenderBuffer {
 public:
     RenderBuffer() { glGenRenderbuffers(1, &mRenderBuffer); }
@@ -70,4 +62,24 @@ public:
     void use(GLuint target){ glBindBuffer(target, mBuffer); }
 private:
     GLuint mBuffer;
+};
+
+class VertexArray {
+public:
+    VertexArray() { glGenVertexArrays(1, &mVertexArray); }
+    ~VertexArray() { glDeleteVertexArrays(1, &mVertexArray); }
+    auto get() const noexcept { return mVertexArray; }
+    void use(){ glBindVertexArray(mVertexArray); }
+private:
+    GLuint mVertexArray;
+};
+
+class Texture {
+public:
+    Texture() { glGenTextures(1, &mTexture); }
+    ~Texture() { glDeleteTextures(1, &mTexture); }
+    auto get() const noexcept { return mTexture; }
+    void use(GLuint target){ glBindTexture(target, mTexture); }
+private:
+    GLuint mTexture;
 };

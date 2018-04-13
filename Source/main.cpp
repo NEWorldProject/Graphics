@@ -87,10 +87,10 @@ void render() {
     sprite.setVertices(verts);
     sprite.setRect({{-25, -25}, {25, 25}});
     sprite.setBrush(testBrush);
-    scene.render(sprite, nullptr);
+    scene.render(sprite);
     scene.popTransform();
     // Update window with OpenGL rendering
-    scene.mFbo.use(GL_READ_FRAMEBUFFER);
+    scene.getResult().use(GL_READ_FRAMEBUFFER);
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
     glBlitFramebuffer(0, 0, 600, 600, 0, 0, 600, 600, GL_COLOR_BUFFER_BIT, GL_NEAREST);
     SDL_GL_SwapWindow(window);
