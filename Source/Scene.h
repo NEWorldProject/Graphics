@@ -16,12 +16,12 @@ public:
     void popTransform();
     void pushClip(const std::vector<Vert>& verts);
     void popClip();
-    GLuint mTex0;
-    GLuint mFbo;
-    GLuint mRbo; // For Stencil Buffers
-    GLuint mVbo, mVao;
-    std::vector<Mat4f> mTransforms { Mat4f::identity() };
+    FrameBuffer mFbo;
 private:
+    RenderBuffer mRbo;
+    DataBuffer mVbo;
+    GLuint mTex0;
+    GLuint mVao;
+    std::vector<Mat4f> mTransforms { Mat4f::identity() };
     void bindBuffers();
-    void unbindBuffers();
 };

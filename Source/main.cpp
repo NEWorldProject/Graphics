@@ -90,7 +90,7 @@ void render() {
     scene.render(sprite, nullptr);
     scene.popTransform();
     // Update window with OpenGL rendering
-    glBindFramebuffer(GL_READ_FRAMEBUFFER, scene.mFbo);
+    scene.mFbo.use(GL_READ_FRAMEBUFFER);
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
     glBlitFramebuffer(0, 0, 600, 600, 0, 0, 600, 600, GL_COLOR_BUFFER_BIT, GL_NEAREST);
     SDL_GL_SwapWindow(window);
