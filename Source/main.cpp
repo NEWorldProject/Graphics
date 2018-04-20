@@ -1,11 +1,11 @@
 #include <iostream>
 #include <vector>
 #include <memory>
+#include <chrono>
 #include <algorithm>
-#include "Math/Matrix.h"
+#include "Common/Math/Matrix.h"
 #include <SDL.h>
 #include "GLUtils.h"
-#include "Utility.h"
 #include "Brush.h"
 #include "Sprite.h"
 #include "Scene.h"
@@ -13,7 +13,6 @@
 bool quit;
 SDL_Window *window;
 SDL_GLContext glContext;
-BrushHandle testBrush;
 
 bool init() {
     // Initialize video subsystem
@@ -46,7 +45,7 @@ bool init() {
     glewInit();
     SDL_GL_SetSwapInterval(1);
     Scene::instance().setSize({600, 600});
-    testBrush = std::make_shared<TestBrush>();
+    return true;
 }
 
 void processEvent(const SDL_Event& ev) {
@@ -68,11 +67,6 @@ void processEvents() {
 
 void render() {
     auto& scene = Scene::instance();
-    // Set background color as cornflower blue
-
-    glClearColor(0.7, 0.7, 1.0, 1.0);
-    // Clear color buffer
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
     static double frame = 0;
     frame += 5;
     scene.pushTransform(Mat4f::ortho(-300, 300, -300, 300, 0.0, 500.0)
@@ -86,13 +80,22 @@ void render() {
     verts.emplace_back(0, 25);
     sprite.setVertices(verts);
     sprite.setRect({{-25, -25}, {25, 25}});
-    sprite.setBrush(testBrush);
+    scene.prepare();
+    scene.render(sprite);
+    scene.popTransform();
+    scene.pushTransform(Mat4f::ortho(-300, 300, -300, 300, 0.0, 500.0)
+                        * Mat4f::rotation(frame + 180, {0, 0, 1})
+                        * Mat4f::translation({100, 0, 0})
+                        * Mat4f::rotation(frame * 7, {0, 0, 1}));
     scene.render(sprite);
     scene.popTransform();
     // Update window with OpenGL rendering
     scene.getResult().use(GL_READ_FRAMEBUFFER);
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
     glBlitFramebuffer(0, 0, 600, 600, 0, 0, 600, 600, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+    scene.getResult().use(GL_FRAMEBUFFER);
+    glClearColor(0.7, 0.7, 1.0, 1.0);
+    glClear(GL_COLOR_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
     SDL_GL_SwapWindow(window);
 };
 

@@ -2,10 +2,10 @@
 
 #include "Utility.h"
 #include "Sprite.h"
-#include "EFX.h"
+#include "Effect.h"
 #include "GLUtils.h"
 
-class Scene : public NonCopyable {
+class Scene : public NonCopyableVirtualBase {
 public:
     Scene();
     ~Scene();
@@ -16,6 +16,7 @@ public:
     void popTransform();
     void pushClip(const std::vector<Vert>& verts);
     void popClip();
+    void prepare();
     FrameBuffer& getResult();
 private:
     class RenderPipeline;

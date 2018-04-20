@@ -2,22 +2,21 @@
 
 #include <memory>
 #include "Utility.h"
+#include "Common/Math/Matrix.h"
+#include "Rect.h"
 #include "GLUtils.h"
-#include "Math/Matrix.h"
 
-class Brush: public NonCopyable {
+struct BrushCtx {
+    const Mat4f& mvp;
+    const Rect& rect;
+    const Texture& prevRes;
+};
+
+class Brush: public NonCopyableVirtualBase {
 public:
-    virtual void useBrush(const Mat4f& mvp) = 0;
-    virtual ~Brush() {}
+    virtual void useBrush(const BrushCtx&) = 0;
+    virtual bool isBlender() const noexcept { return false; }
+    static std::shared_ptr<Brush> getDefault();
 };
 
 using BrushHandle = std::shared_ptr<Brush>;
-
-class TestBrush: public Brush {
-public:
-    TestBrush();
-    void useBrush(const Mat4f& mvp) override;
-private:
-    Program mProg;
-    GLint mMvp;
-};

@@ -4,9 +4,9 @@
 #include <string>
 #include <vector>
 #include "Utility.h"
-#include "Math/Vector.h"
+#include "Common/Math/Vector.h"
 
-class Shader: public NonCopyable {
+class Shader: public NonCopyableVirtualBase {
 public:
     Shader(GLuint eShaderType, const std::string &strFileData);
     ~Shader() { glDeleteShader(mShader); }
@@ -15,7 +15,7 @@ private:
     GLuint mShader;
 };
 
-class Program: public NonCopyable {
+class Program: public NonCopyableVirtualBase {
 public:
     Program() = default;
     ~Program() { glDeleteProgram(mProgram); }
