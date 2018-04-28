@@ -1,14 +1,14 @@
 #pragma once
 
 #include <memory>
-#include "Utility.h"
+#include "Common/Utility.h"
 #include "GLUtils.h"
 #include "Common/Math/Matrix.h"
 
 class Effect: public NonCopyableVirtualBase {
 public:
     virtual ~Effect() = default;
-    virtual void use(Texture &last, const Mat4f &mat) = 0;
+    virtual void use() = 0;
     static std::shared_ptr<Effect> getDefault();
 };
 

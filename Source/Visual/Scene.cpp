@@ -37,15 +37,16 @@ public:
 
     void render(const ISprite& sprite);
 
-    void pushTransform(const Mat4f &mat) { mTransforms.push_back(mTransforms.back() * mat); }
-
-    void popTransform() { mTransforms.pop_back(); }
+    void pushTransform(const Mat4f &mat) {
+        mUMvp.use(GL_UNIFORM_BUFFER);
+        auto transposed = mat.getTranspose();
+        glBufferData(GL_UNIFORM_BUFFER, sizeof(Mat4f), transposed.data, GL_DYNAMIC_DRAW);
+    }
 
     FrameBuffer& getResult() { return mStage1.getResult(); }
 
     void prepare();
 private:
-    auto& getMvp() const noexcept { return mTransforms.back(); }
 
     void blenderBrush(const ISprite& sprite);
 
@@ -66,7 +67,7 @@ private:
     DataBuffer mVbo;
     VertexArray mVao;
     RenderBuffer mStencil;
-    std::vector<Mat4f> mTransforms { Mat4f::identity() };
+    DataBuffer mUMvp, mURect, mUResult;
 };
 
 void Scene::RenderPipeline::resize(Vec2i size) {
@@ -93,6 +94,12 @@ void Scene::RenderPipeline::prepare() {
     mVao.use();
     glEnableVertexAttribArray(0);
     mVbo.use(GL_ARRAY_BUFFER);
+    glVertexAttribPointer(0, 2, GL_DOUBLE, GL_FALSE, 0, nullptr);
+    mUResult.use(GL_UNIFORM_BUFFER);
+    GLuint resData = GL_TEXTURE_2D;
+    glBufferData(GL_UNIFORM_BUFFER, sizeof(GLuint), &resData, GL_STATIC_DRAW);
+    glBindBufferBase(GL_UNIFORM_BUFFER, 1, mUMvp.get());
+    glBindBufferBase(GL_UNIFORM_BUFFER, 3, mUResult.get());
 }
 
 void Scene::RenderPipeline::blenderBrush(const ISprite& sprite) {
@@ -106,7 +113,7 @@ void Scene::RenderPipeline::applyEFX(const ISprite& sprite) {
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     auto rect = sprite.getRect();
-    getEFX(sprite)->use(mStage0.getPipelineResult(), getMvp());
+    getEFX(sprite)->use();
     const double rectData[12] = {
             rect.min.x, rect.min.y, rect.max.x, rect.min.y, rect.min.x, rect.max.y,
             rect.max.x, rect.min.y, rect.max.x, rect.max.y, rect.min.x, rect.max.y,
@@ -116,14 +123,15 @@ void Scene::RenderPipeline::applyEFX(const ISprite& sprite) {
 }
 
 void Scene::RenderPipeline::commonBrush(const ISprite& sprite) {
-    getBrush(sprite)->useBrush({getMvp(), sprite.getRect(), mStage1.getPipelineResult()});
+    getBrush(sprite)->useBrush();
     auto [data, size] = sprite.getVertices();
     glBufferData(GL_ARRAY_BUFFER, sizeof(Vert) * size, data, GL_STREAM_DRAW);
-    glVertexAttribPointer(0, 2, GL_DOUBLE, GL_FALSE, 0, nullptr);
     glDrawArrays(GL_TRIANGLES, 0, size);
 }
 
-Scene::Scene() : mPipeline(std::make_unique<RenderPipeline>()) {}
+Scene::Scene() : mPipeline(std::make_unique<RenderPipeline>()) {
+    BrushType::coInitialize();
+}
 
 Scene::~Scene() = default;
 
@@ -134,9 +142,7 @@ Scene& Scene::instance() {
 
 void Scene::setSize(Vec2i size) { mPipeline->resize(size); }
 
-void Scene::pushTransform(Mat4f mat) { mPipeline->pushTransform(mat); }
-
-void Scene::popTransform() { mPipeline->popTransform(); }
+void Scene::setTransform(Mat4f mat) { mPipeline->pushTransform(mat); }
 
 void Scene::pushClip(const std::vector<Vert>& verts) {}
 

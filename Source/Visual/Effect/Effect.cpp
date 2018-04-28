@@ -1,10 +1,10 @@
-#include "Effect.h"
+#include "Visual/Effect.h"
 
 namespace Effects {
     class EffectDefault final : public Effect {
     public:
         EffectDefault();
-        void use(Texture &last, const Mat4f &mat) override;
+        void use() override;
     private:
         Program mProg{};
         GLint mMvp{}, mLast{};
@@ -38,11 +38,11 @@ void main() {
     mLast = mProg.getUniformLoc("last");
 }
 
-void Effects::EffectDefault::use(Texture &last, const Mat4f &mat) {
+void Effects::EffectDefault::use() {
     mProg.use();
-    last.use(GL_TEXTURE_2D);
-    glUniform1i(mLast, GL_TEXTURE_2D);
-    glUniformMatrix4fv(mMvp, 1, GL_TRUE, mat.data);
+    //last.use(GL_TEXTURE_2D);
+    //glUniform1i(mLast, GL_TEXTURE_2D);
+    //glUniformMatrix4fv(mMvp, 1, GL_TRUE, mat.data);
 }
 
 std::shared_ptr<Effect> Effect::getDefault() {

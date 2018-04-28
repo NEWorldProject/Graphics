@@ -19,8 +19,9 @@ endif()
 
 list(APPEND CMAKE_MODULE_PATH "${PROJECT_DIR}/Build/CMake")
 
-file(GLOB_RECURSE SRC_GRAP Source/*.*)
-add_executable(Graphics ${SRC_GRAP})
+file(GLOB_RECURSE SRC_GIL Source/GIL/*.*)
+file(GLOB SRC_GRAP Source/*.*)
+add_executable(Graphics ${SRC_GRAP} ${SRC_GIL})
 
 # Optional IPO. Do not use IPO if it's not supported by compiler.
 cmake_policy(SET CMP0069 NEW)
