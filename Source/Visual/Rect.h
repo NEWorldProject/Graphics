@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Common/Math/Matrix.h"
+#include "Math/Matrix.h"
 
 struct Rect {
     Vec2d min, max;

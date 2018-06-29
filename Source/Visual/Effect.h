@@ -1,9 +1,9 @@
 #pragma once
 
 #include <memory>
-#include "Common/Utility.h"
+#include "Core/Utility.h"
 #include "GLUtils.h"
-#include "Common/Math/Matrix.h"
+#include "Math/Matrix.h"
 
 class Effect: public NonCopyableVirtualBase {
 public:

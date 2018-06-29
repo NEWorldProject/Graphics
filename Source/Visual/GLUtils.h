@@ -3,8 +3,8 @@
 #include <GL/glew.h>
 #include <string>
 #include <vector>
-#include "Common/Utility.h"
-#include "Common/Math/Vector.h"
+#include "Core/Utility.h"
+#include "Math/Vector.h"
 
 class Shader: public NonCopyableVirtualBase {
 public:

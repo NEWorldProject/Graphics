@@ -1,8 +1,8 @@
 #pragma once
 
 #include <memory>
-#include "Common/Utility.h"
-#include "Common/Math/Matrix.h"
+#include "Core/Utility.h"
+#include "Math/Matrix.h"
 #include "Rect.h"
 #include "GLUtils.h"
 

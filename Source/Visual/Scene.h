@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Common/Utility.h"
+#include "Core/Utility.h"
 #include "Sprite.h"
 #include "Effect.h"
 #include "GLUtils.h"

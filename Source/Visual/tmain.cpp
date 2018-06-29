@@ -3,7 +3,7 @@
 #include <memory>
 #include <chrono>
 #include <algorithm>
-#include "Common/Math/Matrix.h"
+#include "Math/Matrix.h"
 #include <SDL.h>
 #include "GLUtils.h"
 #include "Brush.h"
