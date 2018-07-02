@@ -29,7 +29,7 @@ Shader::Shader(GLuint eShaderType, const std::string &strFileData) {
 void Program::link(const std::vector<Shader*>& shaderList) {
     GLuint programId = glCreateProgram();
     for (auto&& sd : shaderList)
-        glAttachShader(programId, sd->get());
+        glAttachShader(programId, sd->raw());
     glLinkProgram(programId);
     GLint status;
     glGetProgramiv(programId, GL_LINK_STATUS, &status);

@@ -1,6 +1,5 @@
-nw_project_prepare()
+nw_project_prepare(CoreFeatures)
 nwstd_add_executable(Graphics ${CMAKE_CURRENT_SOURCE_DIR})
-nw_module_target(CoreFeatures Graphics)
 
 # Link libraries for NEWorld
 find_package(OpenGL REQUIRED)

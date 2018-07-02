@@ -34,8 +34,8 @@ void main() {
             };
             mProg.link({&vert, &frag});
 
-            GLuint blockIndex = glGetUniformBlockIndex(mProg.get(), "vertexMvp");
-            glUniformBlockBinding(mProg.get(), blockIndex, 1);
+            GLuint blockIndex = glGetUniformBlockIndex(mProg.raw(), "vertexMvp");
+            glUniformBlockBinding(mProg.raw(), blockIndex, 1);
         }
 
         void finalize() override {

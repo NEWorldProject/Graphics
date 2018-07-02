@@ -6,21 +6,21 @@
 #include "Core/Utility.h"
 #include "Math/Vector.h"
 
-class Shader: public NonCopyableVirtualBase {
+class Shader {
 public:
     Shader(GLuint eShaderType, const std::string &strFileData);
     ~Shader() { glDeleteShader(mShader); }
-    auto get() const noexcept { return mShader; }
+    auto raw() const noexcept { return mShader; }
 private:
     GLuint mShader;
 };
 
-class Program: public NonCopyableVirtualBase {
+class Program {
 public:
     Program() = default;
     ~Program() { glDeleteProgram(mProgram); }
     void link(const std::vector<Shader*>& shaderList);
-    auto get() const noexcept { return mProgram; }
+    auto raw() const noexcept { return mProgram; }
     void use() {
         glUseProgram(mProgram);
     }
@@ -36,50 +36,59 @@ public:
     RenderBuffer() { glGenRenderbuffers(1, &mRenderBuffer); }
     ~RenderBuffer() { glDeleteRenderbuffers(1, &mRenderBuffer); }
     void setStorage(GLuint fmt, Vec2i size) {
-        glBindRenderbuffer(GL_RENDERBUFFER, mRenderBuffer);
-        glRenderbufferStorage(GL_RENDERBUFFER, fmt, size.x, size.y);
+        glNamedRenderbufferStorageEXT(mRenderBuffer, fmt, size.x, size.y);
     }
-    auto get() const noexcept { return mRenderBuffer; }
+    auto raw() const noexcept { return mRenderBuffer; }
 private:
-    GLuint mRenderBuffer;
+    GLuint mRenderBuffer{};
 };
 
 class FrameBuffer {
 public:
     FrameBuffer() { glGenFramebuffers(1, &mFrameBuffer); }
     ~FrameBuffer() { glDeleteFramebuffers(1, &mFrameBuffer); }
-    auto get() const noexcept { return mFrameBuffer; }
+    auto raw() const noexcept { return mFrameBuffer; }
     void use(GLuint target){ glBindFramebuffer(target, mFrameBuffer); }
 private:
-    GLuint mFrameBuffer;
+    GLuint mFrameBuffer{};
 };
 
 class DataBuffer {
 public:
     DataBuffer() { glGenBuffers(1, &mBuffer); }
     ~DataBuffer() { glDeleteBuffers(1, &mBuffer); }
-    auto get() const noexcept { return mBuffer; }
+    auto raw() const noexcept { return mBuffer; }
     void use(GLuint target){ glBindBuffer(target, mBuffer); }
+    void data(GLsizei size, const void *data, GLenum usage) { glNamedBufferDataEXT(mBuffer, size, data, usage); }
 private:
-    GLuint mBuffer;
+    GLuint mBuffer{};
 };
 
 class VertexArray {
 public:
     VertexArray() { glGenVertexArrays(1, &mVertexArray); }
     ~VertexArray() { glDeleteVertexArrays(1, &mVertexArray); }
-    auto get() const noexcept { return mVertexArray; }
+    auto raw() const noexcept { return mVertexArray; }
     void use(){ glBindVertexArray(mVertexArray); }
+    void attribFormat(GLuint index, GLuint size, GLenum type, GLboolean normalized, GLuint relativeOffset) {
+        glVertexArrayVertexAttribFormatEXT(mVertexArray, index, size, type, normalized, relativeOffset);
+    }
+    void attribBinding(GLuint attribIndex, GLuint bufferIndex) {
+        glVertexArrayVertexAttribBindingEXT(mVertexArray, attribIndex, bufferIndex);
+    }
+    void bindBuffer(GLuint index, DataBuffer& buffer, GLintptr offset, GLsizei stride) {
+        glVertexArrayBindVertexBufferEXT(mVertexArray, index, buffer.raw(), offset, stride);
+    }
 private:
-    GLuint mVertexArray;
+    GLuint mVertexArray{};
 };
 
 class Texture {
 public:
     Texture() { glGenTextures(1, &mTexture); }
     ~Texture() { glDeleteTextures(1, &mTexture); }
-    auto get() const noexcept { return mTexture; }
+    auto raw() const noexcept { return mTexture; }
     void use(GLuint target){ glBindTexture(target, mTexture); }
 private:
-    GLuint mTexture;
+    GLuint mTexture{};
 };
