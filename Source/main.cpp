@@ -1,129 +1,97 @@
 #include <iostream>
-#include <vector>
-#include <memory>
-#include <chrono>
-#include <algorithm>
-#include "Math/Matrix.h"
-#include <SDL.h>
+#include <array>
 #include <Core/Application.h>
 #include "Visual/GLUtils.h"
-#include "Visual/Brush.h"
-#include "Visual/Sprite.h"
-#include "Visual/Scene.h"
+#include "GraphicApplication.h"
+#include "Window.h"
+#include "GraphicContext.h"
 
-bool quit;
-SDL_Window *window;
-SDL_GLContext glContext;
+#define SDL_MAIN_HANDLED
+#include <SDL2/SDL.h>
 
-bool init() {
-    // Initialize video subsystem
-    if (SDL_Init(SDL_INIT_VIDEO) < 0) {
-        // Display error message
-        printf("SDL could not initialize! SDL_Error: %s\n", SDL_GetError());
-        return false;
+// Window dimensions
+const GLuint WIDTH = 800, HEIGHT = 600;
+
+// Shaders
+const GLchar* vertexShaderSource = "#version 330 core\n"
+                                   "layout (location = 0) in vec3 position;\n"
+                                   "layout (location = 1) in vec3 color;\n"
+                                   "out vec3 ourColor;\n"
+                                   "void main()\n"
+                                   "{\n"
+                                   "gl_Position = vec4(position, 1.0);\n"
+                                   "ourColor = color;\n"
+                                   "}\0";
+const GLchar* fragmentShaderSource = "#version 330 core\n"
+                                     "in vec3 ourColor;\n"
+                                     "out vec4 color;\n"
+                                     "void main()\n"
+                                     "{\n"
+                                     "color = vec4(ourColor, 1.0f);\n"
+                                     "}\n\0";
+
+class Renderer {
+public:
+    Renderer() : mWindow("Hello World!", { SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED }, {WIDTH, HEIGHT}),
+                 mCtx(mWindow), VBO(), VAO() {
+        mWindow.show();
+        glViewport(0, 0, WIDTH, HEIGHT);
+        setUpShader();
+        setUpBuffers();
+        mCtx.unBindCurrent();
+        mCtx.startRenderThread([this](){ render(); });
     }
-    //Use OpenGL 3.1 core
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 4);
-    SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
-    // Create window
-    window = SDL_CreateWindow("Hello World!", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 600, 600,
-                              SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN);
-    if (window == nullptr) {
-        // Display error message
-        printf("Window could not be created! SDL_Error: %s\n", SDL_GetError());
-        return false;
+
+    void setUpShader() {
+        Shader vertexShader{GL_VERTEX_SHADER, vertexShaderSource};
+        Shader fragmentShader{GL_FRAGMENT_SHADER, fragmentShaderSource};
+        mShader.link({&vertexShader, &fragmentShader});
     }
 
-    // Create OpenGL context
-    if (glContext = SDL_GL_CreateContext(window); !glContext) {
-        // Display error message
-        printf("OpenGL context could not be created! SDL Error: %s\n", SDL_GetError());
-        return false;
-    }
-    // Initialize glew
-    glewInit();
-    SDL_GL_SetSwapInterval(1);
-    Scene::instance().setSize({600, 600});
-    return true;
-}
+    void setUpBuffers() {
+        // Set up vertex data (and buffer(s)) and attribute pointers
+        constexpr std::array<GLfloat, 18> vertices = {
+                // Positions         // Colors
+                0.5f, -0.5f, 0.0f,  1.0f, 0.0f, 0.0f,  // Bottom Right
+                -0.5f, -0.5f, 0.0f,  0.0f, 1.0f, 0.0f,  // Bottom Left
+                0.0f,  0.5f, 0.0f,  0.0f, 0.0f, 1.0f   // Top
+        };
 
-void processEvent(const SDL_Event& ev) {
-    switch (ev.type) {
-        case SDL_QUIT:
-            quit = true;
-            break;
-        default:
-            break;
+        VBO.data(vertices, GL_STATIC_DRAW);
+        VAO.use();
+        VAO.enableAttrib(0); // Position attribute
+        VAO.enableAttrib(1); // Color attribute
+        VAO.attribFormat(0, 3, GL_FLOAT, GL_FALSE, 0);
+        VAO.attribFormat(1, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(GLfloat));
+        VAO.attribBinding(0, 0);
+        VAO.attribBinding(1, 0);
+        VAO.bindBuffer(0, VBO, 0, 6 * sizeof(GLfloat));
     }
-}
 
-void processEvents() {
-    SDL_Event sdlEvent;
-    while (SDL_PollEvent(&sdlEvent) != 0) {
-        processEvent(sdlEvent);
+    void render() {
+        glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT);
+
+        // Draw the triangle
+        mShader.use();
+        VAO.use();
+        glDrawArrays(GL_TRIANGLES, 0, 3);
+        glBindVertexArray(0);
     }
-}
 
-void render() {
-    auto& scene = Scene::instance();
-    static double frame = 0;
-    frame += 5;
-    scene.setTransform(Mat4f::ortho(-300, 300, -300, 300, 0.0, 500.0)
-                       * Mat4f::rotation(frame, {0, 0, 1})
-                       * Mat4f::translation({100, 0, 0})
-                       * Mat4f::rotation(frame * 7, {0, 0, 1}).getTranspose());
-    Sprite sprite;
-    std::vector<Vert> verts;
-    verts.emplace_back(-25, -25);
-    verts.emplace_back(25, -25);
-    verts.emplace_back(0, 25);
-    sprite.setVertices(verts);
-    sprite.setRect({{-25, -25}, {25, 25}});
-    scene.prepare();
-    scene.render(sprite);
-    scene.setTransform(Mat4f::ortho(-300, 300, -300, 300, 0.0, 500.0)
-                        * Mat4f::rotation(frame + 180, {0, 0, 1})
-                        * Mat4f::translation({100, 0, 0})
-                        * Mat4f::rotation(frame * 7, {0, 0, 1}));
-    auto now = std::chrono::steady_clock::now();
-    for (int i = 0; i < 1000; ++i)
-        scene.render(sprite);
-    std::cout << std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - now).count()
-              << "ns" << std::endl;
-    // Update window with OpenGL rendering
-    scene.getResult().use(GL_READ_FRAMEBUFFER);
-    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
-    glBlitFramebuffer(0, 0, 600, 600, 0, 0, 600, 600, GL_COLOR_BUFFER_BIT, GL_NEAREST);
-    scene.getResult().use(GL_FRAMEBUFFER);
-    glClearColor(0.7, 0.7, 1.0, 1.0);
-    glClear(GL_COLOR_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-    SDL_GL_SwapWindow(window);
+private:
+    Graphics::Window mWindow;
+    Graphics::Context mCtx;
+    DataBuffer VBO;
+    VertexArray VAO;
+    Program mShader{};
 };
 
-void loop() {
-    quit = false;
-    while (!quit) {
-        processEvents();
-        render();
-    }
-}
-
-void finalize() {
-    //Destroy window
-    SDL_DestroyWindow(window);
-    window = nullptr;
-    //Quit SDL subsystems
-    SDL_Quit();
-}
-
-class ApplicationTest : public Application {
+class ApplicationTest : public Graphics::Application {
 public:
     void run() override {
-        init();
-        loop();
-        finalize();
+        Renderer renderer {};
+        Application::run();
     }
 };
 
