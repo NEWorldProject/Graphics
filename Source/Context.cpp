@@ -1,8 +1,9 @@
-#include "GraphicContext.h"
-#include "Window.h"
+#include "Graphics/Context.h"
+#include "Graphics/Window.h"
 #include <GL/glew.h>
 #include <SDL2/SDL.h>
 #include <stdexcept>
+#include <iostream>
 
 namespace {
     auto upCast(void* hdc) { return reinterpret_cast<SDL_GLContext>(hdc); }
@@ -31,7 +32,7 @@ Graphics::Context::~Context() noexcept {
     }
 }
 
-void Graphics::Context::makeCurrent() {
+void Graphics::Context::makeCurrent() noexcept {
     SDL_GL_MakeCurrent(reinterpret_cast<SDL_Window*>(mHost), upCast(mHdc));
 }
 
@@ -53,8 +54,9 @@ void Graphics::Context::closeRenderThread() noexcept {
         mRenderThread.join();
 }
 
-void Graphics::Context::unBindCurrent() {
-    SDL_GL_MakeCurrent(reinterpret_cast<SDL_Window*>(mHost), nullptr);
+void Graphics::Context::unBindCurrent() noexcept {
+    if (SDL_GL_GetCurrentContext() == mHdc)
+        SDL_GL_MakeCurrent(reinterpret_cast<SDL_Window*>(mHost), nullptr);
 }
 
 Graphics::Context::Context(Graphics::Context &&rhs) noexcept : mHdc(rhs.mHdc), mHost(rhs.mHost) {

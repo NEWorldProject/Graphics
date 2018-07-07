@@ -3,11 +3,11 @@
 #include <cstddef>
 #include <array>
 
-namespace GIL {
+namespace Graphics {
     template <std::size_t ...idx>
     struct Layout {
-        static constexpr std::size_t size = sizeof idx;
-        static constexpr std::array<std::size_t, sizeof idx> idxs = { idx ... };
+        static constexpr std::size_t size = sizeof...(idx);
+        static constexpr std::array<std::size_t, sizeof...(idx)> idxs = { idx ... };
         template <std::size_t index>
         static constexpr auto get() noexcept { return idxs[index]; }
     };
@@ -30,6 +30,11 @@ namespace GIL {
             typename TColorInfo::ColorSpace,
             typename TColorInfo::Layout,
             typename Presentation::ColorPresentationProvider> {
+        using InterfaceApplier<
+                typename TColorInfo::ColorSpace,
+                typename TColorInfo::Layout,
+                typename Presentation::ColorPresentationProvider>
+        ::template InterfaceApplier;
         using ColorInfo = TColorInfo;
     };
 

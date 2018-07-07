@@ -1,4 +1,4 @@
-#include "Window.h"
+#include "Graphics/Window.h"
 #include <SDL2/SDL.h>
 
 namespace {
@@ -19,9 +19,9 @@ Graphics::Window::~Window() noexcept {
     }
 }
 
-void Graphics::Window::show() { SDL_ShowWindow(upCast(mHdc)); }
+void Graphics::Window::show() noexcept { SDL_ShowWindow(upCast(mHdc)); }
 
-void Graphics::Window::hide() { SDL_HideWindow(upCast(mHdc)); }
+void Graphics::Window::hide() noexcept { SDL_HideWindow(upCast(mHdc)); }
 
 Graphics::Window::Window(Graphics::Window && rhs) noexcept : mHdc(rhs.mHdc) { rhs.mHdc = nullptr; }
 
@@ -29,3 +29,5 @@ Graphics::Window &Graphics::Window::operator=(Graphics::Window &&rhs) noexcept {
     std::swap(mHdc, rhs.mHdc);
     return *this;
 }
+
+void Graphics::Window::raise() noexcept { SDL_RaiseWindow(upCast(mHdc)); }

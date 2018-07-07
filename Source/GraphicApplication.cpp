@@ -1,4 +1,4 @@
-#include "GraphicApplication.h"
+#include "Graphics/GraphicApplication.h"
 #include <SDL2/SDL.h>
 
 namespace {

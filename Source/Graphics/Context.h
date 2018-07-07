@@ -16,8 +16,8 @@ namespace Graphics {
         Context(const Context&) = delete;
         Context& operator = (const Context&) = delete;
         ~Context() noexcept;
-        void unBindCurrent();
-        void makeCurrent();
+        void unBindCurrent() noexcept;
+        void makeCurrent() noexcept;
         void startRenderThread(std::function<void()> renderFunction);
         void closeRenderThread() noexcept;
         void* raw() const noexcept { return mHdc; }

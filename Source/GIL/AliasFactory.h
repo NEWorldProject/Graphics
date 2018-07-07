@@ -3,7 +3,7 @@
 #include "BAPresentation.h"
 #include "Basics.h"
 
-namespace GIL {
+namespace Graphics {
     template <class TColor>
     struct AliasFactory {
         using Color = TColor;
