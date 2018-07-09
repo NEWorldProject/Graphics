@@ -192,6 +192,7 @@ void Context::makeCurrent() noexcept {
 }
 
 void Context::startRenderThread(std::function<void()> renderFunction) {
+    unBindCurrent();
     if (mRenderFlag.exchange(true))
         throw std::runtime_error("Render thread already running");
     mRenderThread = std::thread([this, renderFunction = std::move(renderFunction)]() {

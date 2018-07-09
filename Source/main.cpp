@@ -15,7 +15,6 @@ public:
         mWindow.show();
         glViewport(0, 0, WIDTH, HEIGHT);
         setUpTriangle();
-        mCtx.unBindCurrent();
         mCtx.startRenderThread([this](){ render(); });
     }
 
@@ -33,7 +32,7 @@ public:
     }
 
     void render() {
-        mTransform = mTransform * Mat4f::rotation(1, {0.0f, 0.0f, 1.0f});
+        mTransform *= Mat4f::rotation(1, {0.0f, 0.0f, 1.0f});
         mTriangle.setTransform(mTransform);
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
