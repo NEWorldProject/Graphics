@@ -1,5 +1,7 @@
 #include "Graphics/Visual.h"
 
+using namespace Graphics;
+
 namespace {
     class VisualRenderContext {
     public:
@@ -7,14 +9,21 @@ namespace {
             mVa.enableAttrib(0); // Position attribute
             mVa.attribBinding(0, 0);
             mVa.attribFormat(0, 2, GL_FLOAT, false, 0);
+            mMatrix.data(mMvp.back().data, GL_STREAM_DRAW);
         }
         void useTempBuffer() noexcept {
             mTempBuffer.use(GL_FRAMEBUFFER);
         }
         void useVa() noexcept { mVa.use(); }
         auto& getVa() noexcept { return mVa; }
+        void pushMatrix(const Mat4f& matrix) { mMvp.push_back(mMvp.back() * matrix); }
+        void popMatrix() { mMvp.pop_back(); }
+        void flushMatrix() { mMatrix.dataSection(0, mMvp.back().data); }
+        void begin() { mMatrix.bindBase(GL_UNIFORM_BUFFER, 0); }
     private:
+        std::vector<Mat4f> mMvp { Mat4f::identity() };
         VertexArray mVa;
+        DataBuffer mMatrix;
         FrameBuffer mTempBuffer;
     };
 
@@ -27,37 +36,41 @@ namespace {
     }
 }
 
-void Graphics::Visual::setOutEffect(std::shared_ptr<Graphics::OutEfx> newEffect) noexcept {
+void Visual::setOutEffect(std::shared_ptr<OutEfx> newEffect) noexcept {
     mOutputEffect = std::move(newEffect);
 }
 
-void Graphics::Visual::renderThis(FrameBuffer &fbo) const {
+void Visual::renderThis(FrameBuffer &fbo) const {
     auto& ctx = getCtx();
-    //if (mOutputEffect)
-    this->renderContent();
-    /*if (mOutputEffect){
+    if (mOutputEffect)
         ctx.useTempBuffer();
-    }*/
+    this->renderContent();
+    if (mOutputEffect){
+    }
 }
 
-void Graphics::Visual::beginRender() noexcept {
+void Visual::setTransform(const Mat4f &transform) noexcept { mTransform = transform; }
+
+void Visual::beginRender() {
+    getCtx().begin();
+}
+
+void Visual::closeRender() {
 
 }
 
-void Graphics::Visual::closeRender() noexcept {
-
-}
-
-void Graphics::Triangle::setBorderBrush(std::shared_ptr<Graphics::Brush> newBrush) noexcept {
+void Triangle::setBorderBrush(std::shared_ptr<Brush> newBrush) noexcept {
     mBorderBrush = std::move(newBrush);
 }
 
-void Graphics::Triangle::setFillBrush(std::shared_ptr<Graphics::Brush> newBrush) noexcept {
+void Triangle::setFillBrush(std::shared_ptr<Brush> newBrush) noexcept {
     mFillBrush = std::move(newBrush);
 }
 
-void Graphics::Triangle::renderContent() const {
+void Triangle::renderContent() const {
     auto& ctx = getCtx();
+    ctx.pushMatrix(mTransform);
+    ctx.flushMatrix();
     ctx.getVa().bindBuffer(0, mShape, 0, 2 * sizeof(GLfloat));
     ctx.useVa();
     if (mFillBrush) {
@@ -68,4 +81,23 @@ void Graphics::Triangle::renderContent() const {
         mBorderBrush->use();
         glDrawArrays(GL_LINE_LOOP, 0, 3);
     }
+    ctx.popMatrix();
+}
+
+void VisualCollectionNode::renderThis(FrameBuffer& fbo) const {
+    for (auto&& x : mVisualChildren)
+        x->renderThis(fbo);
+}
+
+const std::unique_ptr<Visual> &VisualRoot::getContent() const {
+    return mContent;
+}
+
+void VisualRoot::setContent(std::unique_ptr<Visual> newContent) {
+    mContent = std::move(newContent);
+}
+
+void VisualRoot::renderThis(FrameBuffer& fbo) const {
+    getCtx().begin();
+    mContent->renderThis(fbo);
 }

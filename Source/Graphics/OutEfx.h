@@ -4,4 +4,9 @@ namespace Graphics {
     class OutEfx {
 
     };
+
+    class OutEFXType {
+
+    };
+
 }

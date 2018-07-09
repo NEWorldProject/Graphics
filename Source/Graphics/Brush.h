@@ -1,6 +1,6 @@
 #pragma once
 
-#include "GLUtils.h"
+#include "OpenGL.h"
 #include "GIL/RGBA.h"
 
 namespace Graphics {
@@ -25,7 +25,7 @@ namespace Graphics {
     class SolidColorBrush : public Brush {
     public:
         SolidColorBrush();
-        SolidColorBrush(const RGBA::f32::Color& color);
+        explicit SolidColorBrush(const RGBA::f32::Color& color);
         void use() noexcept override;
         void setColor(const RGBA::f32::Color& color);
     private:

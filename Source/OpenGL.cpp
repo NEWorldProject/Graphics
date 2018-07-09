@@ -1,4 +1,19 @@
-#include "Graphics/GLUtils.h"
+#include "Graphics/OpenGL.h"
+#include "Graphics/Window.h"
+#include <SDL2/SDL.h>
+#include <stdexcept>
+
+using namespace Graphics;
+
+namespace {
+    GLHandle defaultHandle;
+    template <class T>
+    T& getDefaultHandle() noexcept {
+        GLHandle& ref = defaultHandle;
+        return reinterpret_cast<T&>(ref);
+    }
+    auto upCast(void* hdc) { return reinterpret_cast<SDL_GLContext>(hdc); }
+}
 
 Shader::Shader(GLuint eShaderType, const std::string &strFileData) {
     GLuint shader = glCreateShader(eShaderType);
@@ -107,6 +122,8 @@ void VertexArray::bindBuffer(GLuint index, const DataBuffer &buffer, GLintptr of
     glVertexArrayBindVertexBufferEXT(mHdc, index, buffer.raw(), offset, stride);
 }
 
+VertexArray &VertexArray::getDefault() noexcept { return getDefaultHandle<VertexArray>(); }
+
 void Texture::image(GLuint level, GLuint internalFormat, Vec2i size, GLuint format, GLuint type, void *data) noexcept {
     glTextureImage2DEXT(mHdc, GL_TEXTURE_2D, level, internalFormat, size.x, size.y, 0, format, type, data);
 }
@@ -139,5 +156,71 @@ void FrameBuffer::renderBuffer(GLenum attachment, GLenum target, RenderBuffer &b
     glNamedFramebufferRenderbufferEXT(mHdc, attachment, target, buffer.raw());
 }
 
+FrameBuffer &FrameBuffer::getDefault() noexcept { return getDefaultHandle<FrameBuffer>(); }
+
+void FrameBuffer::clearColor(GLuint buffer, const Graphics::RGBA::f32::Color &color) noexcept {
+}
+
 void blitFrameBuffers(FrameBuffer &dst, const FrameBuffer &src, const Rect &to, const Rect &from) {
 }
+
+Context::Context(Graphics::Window &window) {
+    auto ctx = SDL_GL_CreateContext(reinterpret_cast<SDL_Window*>(window.raw()));
+    if (!ctx)
+        throw std::runtime_error(std::string("OpenGL context could not be created! SDL Error: ") + SDL_GetError());
+    mHdc = ctx;
+    mHost = window.raw();
+    SDL_GL_SetSwapInterval(1);
+    static bool isFirstContext = true;
+    if (isFirstContext) {
+        glewInit();
+        isFirstContext = false;
+    }
+}
+
+Context::~Context() noexcept {
+    if (mHdc) {
+        if (mRenderFlag)
+            closeRenderThread();
+        SDL_GL_DeleteContext(upCast(mHdc));
+        mHdc = nullptr;
+    }
+}
+
+void Context::makeCurrent() noexcept {
+    SDL_GL_MakeCurrent(reinterpret_cast<SDL_Window*>(mHost), upCast(mHdc));
+}
+
+void Context::startRenderThread(std::function<void()> renderFunction) {
+    if (mRenderFlag.exchange(true))
+        throw std::runtime_error("Render thread already running");
+    mRenderThread = std::thread([this, renderFunction = std::move(renderFunction)]() {
+        SDL_GL_MakeCurrent(reinterpret_cast<SDL_Window*>(mHost), upCast(mHdc));
+        while (mRenderFlag) {
+            renderFunction();
+            SDL_GL_SwapWindow(reinterpret_cast<SDL_Window*>(mHost));
+        }
+    });
+}
+
+void Context::closeRenderThread() noexcept {
+    mRenderFlag = false;
+    if (mRenderThread.joinable())
+        mRenderThread.join();
+}
+
+void Context::unBindCurrent() noexcept {
+    if (SDL_GL_GetCurrentContext() == mHdc)
+        SDL_GL_MakeCurrent(reinterpret_cast<SDL_Window*>(mHost), nullptr);
+}
+
+Context::Context(Graphics::Context &&rhs) noexcept : mHdc(rhs.mHdc), mHost(rhs.mHost) {
+    mHdc = mHost = nullptr;
+}
+
+Context &Graphics::Context::operator=(Graphics::Context &&rhs) noexcept {
+    std::swap(mHdc, rhs.mHdc);
+    std::swap(mHost, rhs.mHost);
+    return *this;
+}
+
